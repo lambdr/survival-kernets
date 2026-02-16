@@ -210,6 +210,147 @@ def load_dataset(dataset, random_seed_offset=0, fix_test_shuffle_train=False):
 
         dataset_random_seed = 331231101
 
+    elif dataset == 'support_lt':
+        with open('data/support_lt.csv', 'r') as f:
+            csv_reader = csv.reader(f)
+            header = True
+            X = []
+            y = []
+            for row in csv_reader:
+                if header:
+                    header = False
+                else:
+                    row = row[1:]
+
+                    age = float(row[0])
+                    sex = int(row[2] == 'female')
+
+                    race = row[16]
+                    if race == '':
+                        race = 0
+                    elif race == 'asian':
+                        race = 1
+                    elif race == 'black':
+                        race = 2
+                    elif race == 'hispanic':
+                        race = 3
+                    elif race == 'other':
+                        race = 4
+                    elif race == 'white':
+                        race = 5
+
+                    num_co = int(row[8])
+                    diabetes = int(row[22])
+                    dementia = int(row[23])
+
+                    ca = row[24]
+                    if ca == 'no':
+                        ca = 0
+                    elif ca == 'yes':
+                        ca = 1
+                    elif ca == 'metastatic':
+                        ca = 2
+
+                    meanbp = row[29]
+                    if meanbp == '':
+                        meanbp = np.nan
+                    else:
+                        meanbp = float(meanbp)
+
+                    hrt = row[31]
+                    if hrt == '':
+                        hrt = np.nan
+                    else:
+                        hrt = float(hrt)
+
+                    resp = row[32]
+                    if resp == '':
+                        resp = np.nan
+                    else:
+                        resp = float(resp)
+
+                    temp = row[33]
+                    if temp == '':
+                        temp = np.nan
+                    else:
+                        temp = float(temp)
+
+                    wblc = row[30]
+                    if wblc == '':
+                        wblc = np.nan
+                    else:
+                        wblc = float(wblc)
+
+                    sod = row[38]
+                    if sod == '':
+                        sod = np.nan
+                    else:
+                        sod = float(sod)
+
+                    crea = row[37]
+                    if crea == '':
+                        crea = np.nan
+                    else:
+                        crea = float(crea)
+
+                    d_time = float(row[5])
+                    death = int(row[1])
+
+                    X.append([age, sex, race, num_co, diabetes, dementia, ca,
+                              meanbp, hrt, resp, temp, wblc, sod, crea])
+                    y.append([d_time, death])
+
+        X = np.array(X)
+        y = np.array(y)
+
+        not_nan_mask = ~np.isnan(X).any(axis=1)
+        X = X[not_nan_mask]
+        y = y[not_nan_mask]
+
+        feature_names = ['age', 'sex', 'num.co', 'diabetes', 'dementia', 'ca',
+                         'meanbp', 'hrt', 'resp', 'temp', 'wblc', 'sod', 'crea',
+                         'race_blank', 'race_asian', 'race_black',
+                         'race_hispanic', 'race_other', 'race_white']
+
+        categories = [list(range(int(X[:, 2].max()) + 1))]
+
+        def compute_features_and_transformer(features, cox=False):
+            new_features = np.zeros((features.shape[0], 19))
+            scaler = StandardScaler()
+            encoder = OneHotEncoder(categories=categories)
+            cols_standardize = [0, 7, 8, 9, 10, 11, 12, 13]
+            cols_leave = [1, 4, 5]
+            cols_categorical = [2]
+            new_features[:, [0, 6, 7, 8, 9, 10, 11, 12]] = \
+                scaler.fit_transform(features[:, cols_standardize])
+            new_features[:, [1, 3, 4]] = features[:, cols_leave]
+            new_features[:, 13:] = \
+                encoder.fit_transform(features[:, cols_categorical]).toarray()
+            new_features[:, 2] = features[:, 3] / 9.
+            new_features[:, 5] = features[:, 6] / 2.
+            if cox:
+                return new_features[:, :-1], (scaler, encoder)
+            return new_features, (scaler, encoder)
+
+        def transform_features(features, transformer, cox=False):
+            new_features = np.zeros((features.shape[0], 19))
+            scaler, encoder = transformer
+            cols_standardize = [0, 7, 8, 9, 10, 11, 12, 13]
+            cols_leave = [1, 4, 5]
+            cols_categorical = [2]
+            new_features[:, [0, 6, 7, 8, 9, 10, 11, 12]] = \
+                scaler.transform(features[:, cols_standardize])
+            new_features[:, [1, 3, 4]] = features[:, cols_leave]
+            new_features[:, 13:] = \
+                encoder.transform(features[:, cols_categorical]).toarray()
+            new_features[:, 2] = features[:, 3] / 9.
+            new_features[:, 5] = features[:, 6] / 2.
+            if cox:
+                return new_features[:, :-1]
+            return new_features
+
+        dataset_random_seed = 331231101
+
     elif dataset == 'rotterdam-gbsg':
         # ----------------------------------------------------------------------
         # snippet of code from DeepSurv repository

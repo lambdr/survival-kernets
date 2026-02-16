@@ -145,7 +145,8 @@ for experiment_idx in range(n_experiment_repeats):
         print()
 
         xgb_params = {'nthread': n_jobs,
-                      'tree_method': 'gpu_hist',
+                      #'tree_method': 'gpu_hist', ## replaced with the following 26/02/08
+                      'tree_method': 'hist',
                       'objective': 'survival:cox'}
 
         # for the Cox model, XGBoost expects censored

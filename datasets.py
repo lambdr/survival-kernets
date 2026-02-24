@@ -472,6 +472,85 @@ def load_dataset(dataset, random_seed_offset=0, fix_test_shuffle_train=False):
 
         dataset_random_seed = 172428017
 
+    elif dataset == 'simulated':
+        with open('data/simulated.csv', 'r') as f:
+            csv_reader = csv.reader(f)
+            header = True
+            X = []
+            y = []
+
+            for row in csv_reader:
+                if header:
+                    header = False
+                else:
+                    # covariates
+                    x1 = float(row[0])
+                    x2 = float(row[1])
+                    x3 = int(row[2])   
+                    x4 = int(row[3])   
+                    x5 = float(row[4])
+
+                    # survival outcome
+                    d_time = float(row[5])
+                    event = int(row[6])
+
+                    X.append([x1, x2, x3, x4, x5])
+                    y.append([d_time, event])
+
+        X = np.array(X)
+        y = np.array(y)
+
+        # Remove rows with missing values
+        not_nan_mask = ~np.isnan(X).any(axis=1)
+        X = X[not_nan_mask]
+        y = y[not_nan_mask]
+
+        feature_names = ['x1', 'x2', 'x3', 'x4', 'x5']
+
+        def compute_features_and_transformer(features, cox=False):
+            """
+            x1, x2, x5 → standardized
+            x3, x4 → left unchanged
+            """
+            new_features = np.zeros_like(features)
+
+            scaler = StandardScaler()
+
+            cols_standardize = [0, 1, 4]  # continuous
+            cols_leave = [2, 3]           # binary
+
+            new_features[:, cols_standardize] = \
+                scaler.fit_transform(features[:, cols_standardize])
+
+            new_features[:, cols_leave] = \
+                features[:, cols_leave]
+
+            if cox:
+                return new_features, scaler
+            return new_features, scaler
+
+        def transform_features(features, transformer, cox=False):
+            new_features = np.zeros_like(features)
+
+            scaler = transformer
+
+            cols_standardize = [0, 1, 4]
+            cols_leave = [2, 3]
+
+            new_features[:, cols_standardize] = \
+                scaler.transform(features[:, cols_standardize])
+
+            new_features[:, cols_leave] = \
+                features[:, cols_leave]
+
+            if cox:
+                return new_features
+            return new_features
+
+        dataset_random_seed = 331231101
+
+            
+
     else:
         raise NotImplementedError('Unsupported dataset: %s' % dataset)
 

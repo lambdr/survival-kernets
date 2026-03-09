@@ -210,8 +210,8 @@ def load_dataset(dataset, random_seed_offset=0, fix_test_shuffle_train=False):
 
         dataset_random_seed = 331231101
 
-    elif dataset == 'support_lt':
-        with open('data/support_lt.csv', 'r') as f:
+    elif dataset.startswith('support'):
+        with open(f'data/{dataset}', 'r') as f:
             csv_reader = csv.reader(f)
             header = True
             X = []
@@ -472,8 +472,8 @@ def load_dataset(dataset, random_seed_offset=0, fix_test_shuffle_train=False):
 
         dataset_random_seed = 172428017
 
-    elif dataset == 'simulated':
-        with open('data/simulated.csv', 'r') as f:
+    elif dataset.startswith('simulated'):
+        with open(f'data/{dataset}', 'r') as f:
             csv_reader = csv.reader(f)
             header = True
             X = []

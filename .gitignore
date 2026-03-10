@@ -2,3 +2,5 @@
 .ipynb_checkpoints/
 out_*
 *__pycache__/
+results/
+results_backup/

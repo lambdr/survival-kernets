@@ -549,7 +549,57 @@ def load_dataset(dataset, random_seed_offset=0, fix_test_shuffle_train=False):
 
         dataset_random_seed = 331231101
 
-            
+    elif dataset.startswith('small'):
+        with open(f'data/{dataset}', 'r') as f:
+            csv_reader = csv.reader(f)
+            header = True
+            X = []
+            y = []
+
+            for row in csv_reader:
+                if header:
+                    header = False
+                else:
+                    # covariates
+                    x1 = float(row[0])
+                    x2 = float(row[1])
+
+                    # survival outcome
+                    d_time = float(row[2])
+                    event = int(row[3])
+
+                    X.append([x1, x2])
+                    y.append([d_time, event])
+
+        X = np.array(X)
+        y = np.array(y)
+
+        # Remove rows with missing values
+        not_nan_mask = ~np.isnan(X).any(axis=1)
+        X = X[not_nan_mask]
+        y = y[not_nan_mask]
+
+        feature_names = ['x1', 'x2']
+
+        def compute_features_and_transformer(features, cox=False):
+            """
+            x1, x2 → standardized
+            """
+            scaler = StandardScaler()
+            new_features = scaler.fit_transform(features)
+
+            if cox:
+                return new_features, scaler
+            return new_features, scaler
+
+        def transform_features(features, transformer, cox=False):
+            new_features = transformer.transform(features)
+
+            if cox:
+                return new_features
+            return new_features
+
+        dataset_random_seed = 331231101       
 
     else:
         raise NotImplementedError('Unsupported dataset: %s' % dataset)

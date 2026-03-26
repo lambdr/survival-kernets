@@ -821,6 +821,18 @@ class KernelPretrainMSELoss(_Loss):
                                                     reduction)
 
     def forward(self, input: Tensor, target: Tensor) -> Tensor:
+        # Debug check before cdist // dx 260326
+        if target.dim() == 1:
+            print("\n[DEBUG] target is 1D!")
+            print("type:", type(target))
+            print("shape:", target.shape)
+            print("dtype:", target.dtype)
+            print("device:", target.device)
+    
+            # Ensure target is at least 2D
+            target = target.unsqueeze(1)  # (N,) -> (N, 1)
+
+        # Continue as normal // end dx
         target_kernel = 1. - torch.cdist(target, target, 0) / target.size(1)
         input_kernel = (-symmetric_squared_pairwise_distances(input)).exp() \
             - torch.eye(input.size(0), device=input.device)

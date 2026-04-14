@@ -122,10 +122,23 @@ class NLLKernelHazardLoss(torch.nn.Module):
                 events: Tensor) -> Tensor:
         return nll_kernel_hazard(phi, idx_durations, events, self.alpha,
                                  self.sigma, self.gamma)
+    
+class NLLKernelHazardTruncationLoss(torch.nn.Module):
+    def __init__(self, alpha, sigma, gamma):
+        super(NLLKernelHazardTruncationLoss, self).__init__()
+        self.alpha = alpha
+        self.sigma = sigma
+        self.gamma = gamma
 
+    def forward(self, phi: Tensor, idx_durations: Tensor,
+                events: Tensor, idx_truncations: Tensor) -> Tensor:
+        return nll_kernel_hazard(phi, idx_durations, events, self.alpha,
+                                 self.sigma, self.gamma, idx_truncations)
 
+    
 def nll_kernel_hazard(phi: Tensor, idx_durations: Tensor, events: Tensor,
                       alpha: float, sigma: float, gamma: float,
+                      idx_truncations: Tensor = None,  # <-- new argument
                       reduction: str = 'mean') -> Tensor:
     """
     Computes the kernel hazard function loss in the paper [1] (including a
@@ -150,7 +163,6 @@ def nll_kernel_hazard(phi: Tensor, idx_durations: Tensor, events: Tensor,
     if alpha < 1:
         rank_mat_np = pair_rank_mat(idx_durations.detach().cpu().numpy(),
                                     events.detach().cpu().numpy())
-        # rank_normalization_constant = rank_mat_np.sum()
         rank_mat = torch.tensor(rank_mat_np, device=phi.device)
     idx_durations = idx_durations.view(-1, 1)
     events = events.view(-1, 1)
@@ -171,11 +183,28 @@ def nll_kernel_hazard(phi: Tensor, idx_durations: Tensor, events: Tensor,
 
     # kernel hazard function calculation
     num_at_risk = ((weights_loo_discretized.flip(1)).cumsum(1)).flip(1) + 1e-12
+
+    # --- left truncation modification ---
+    # subtract out subjects who had not yet entered the risk set
+    if idx_truncations is not None:
+        idx_truncations = idx_truncations.view(-1, 1)
+        # truncation indicator matrix: entry (i, t) = 1 if subject i
+        # had not yet entered the risk set at time t (i.e., t < entry time)
+        time_grid = torch.arange(num_durations, device=phi.device).view(1, -1)
+        not_yet_entered = (time_grid < idx_truncations).float()  # (batch, num_durations)
+
+        # for each test subject i, subtract the kernel-weighted contribution
+        # of subjects not yet in the risk set at each time t
+        weights_loo_truncated = \
+            torch.matmul(weights_loo,
+                         not_yet_entered)  # (batch, num_durations)
+        num_at_risk = num_at_risk - weights_loo_truncated + 1e-12
+    # --- end modification ---
+
     num_events = torch.matmul(weights_loo, y_bce)
     hazards = torch.clamp(num_events / num_at_risk, 1e-12, 1. - 1e-12)
 
     if not torch.all((hazards >= 0) & (hazards <= 1)):
-        # weird corner case
         return torch.tensor(np.inf, dtype=torch.float32)
 
     bce = F.binary_cross_entropy(hazards, y_bce, reduction='none')
@@ -196,8 +225,6 @@ def nll_kernel_hazard(phi: Tensor, idx_durations: Tensor, events: Tensor,
         differences = (ones.matmul(diag_A) - A).transpose(0, 1)
         rank_loss = \
             (rank_mat * torch.exp(differences / sigma)).mean(1, keepdim=True)
-            # / \
-            # rank_normalization_constant
 
         return alpha * pycox.models.loss._reduction(nll_loss, reduction) + \
             (1 - alpha) * pycox.models.loss._reduction(rank_loss, reduction) \

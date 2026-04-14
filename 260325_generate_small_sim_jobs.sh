@@ -5,9 +5,10 @@ set -e
 # Example: ./generate_run_script.sh simulated_lt out_baselines_sim out_kernet_sim
 
 DATASET=$1
+DATE=$2
 
-DIR_BASELINES="results/260325_${DATASET:r}_baseline"
-DIR_KERNET="results/260325_${DATASET:r}_results"
+DIR_BASELINES="results/${DATE}_${DATASET:r}_baseline" 
+DIR_KERNET="results/${DATE}_${DATASET:r}_results"
 
 CFG_BASELINES="cfg_baselines_${DATASET:r}.ini"
 CFG_KERNET="cfg_kernet_${DATASET:r}.ini"
@@ -62,7 +63,7 @@ n_nodes = [32, 64, 128]
 learning_rate = [0.01, 0.001]
 sumtune_learning_rate = [0.05, 0.01]
 random_seed = 4063380196
-finetune_summaries = 1
+finetune_summaries = 0
 EOF
 
 # Create cfg_kernet_<dataset>.ini
@@ -112,7 +113,7 @@ n_nodes = [32, 64, 128]
 learning_rate = [0.01, 0.001]
 sumtune_learning_rate = [0.05, 0.01]
 random_seed = 4063380196
-finetune_summaries = 1
+finetune_summaries = 0
 EOF
 
 # Create the run script
@@ -124,7 +125,7 @@ source ~/.zshrc
 conda activate survival-kernets
 
 python demo_xgb.py configs/${CFG_BASELINES}
-python demo_tuna_kernet.py configs/${CFG_KERNET}  # with summary fine-tuning
+python demo_tuna_kernet.py configs/${CFG_KERNET}  
 EOF
 
 chmod +x jobs/${OUT_SCRIPT}

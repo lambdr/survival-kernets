@@ -4,5 +4,4 @@ set -e
 source ~/.zshrc
 conda activate survival-kernets
 
-python demo_xgb.py configs/cfg_baselines_small_sim_0pct_trunc_part_2_lt.ini
-python demo_tuna_kernet.py configs/cfg_kernet_small_sim_0pct_trunc_part_2_lt.ini  # with summary fine-tuning
+python lt_tuna_kernet.py configs/cfg_kernet_small_sim_0pct_trunc_part_2_lt.ini  
